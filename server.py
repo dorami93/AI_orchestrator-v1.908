@@ -1,42 +1,65 @@
 # server.py
 #
 # ============================================================
-# Setup: uv add playwright
-#        uv run playwright install chromium
+# Setup:
+#   uv add playwright
+#   uv run playwright install chromium
 #
-# Run:   python3 server.py -url "https://chatgpt.com"
+# Run:
+#   python3 server.py -url "https://chatgpt.com"
 #
-# Exit:  > exit
+# Exit:
+#   > exit
 # ============================================================
 
 import argparse
 import asyncio
 
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 
-async def main(url):
+async def main(url: str):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(
+            headless=True,
+            channel="chromium",
+        )
         page = await browser.new_page()
 
         try:
             await page.goto(url, wait_until="domcontentloaded")
-            textarea = page.locator("textarea").first
+
+            print(f"Browser ready: {url}")
+            print("終了: exit\n")
 
             while True:
                 text = input("> ").strip()
 
-                if text.lower() == "exit":
-                    break
                 if not text:
                     continue
 
-                await textarea.fill(text)
-                await textarea.press("Enter")
+                if text.lower() == "exit":
+                    break
 
-                await page.wait_for_timeout(1000)
-                print("送信しました。")
+                textarea = page.locator("textarea").first
+
+                print("count:", await page.locator("textarea").count())
+                print("visible:", await textarea.is_visible())
+                print("enabled:", await textarea.is_enabled())
+
+                try:
+                    await textarea.wait_for(
+                        state="visible",
+                        timeout=10000,
+                    )
+
+                    await textarea.fill(text)
+                    await textarea.press("Enter")
+
+                    print("送信しました。")
+
+                except PlaywrightTimeoutError:
+                    print("textareaが見つかりませんでした。")
 
         finally:
             await browser.close()
