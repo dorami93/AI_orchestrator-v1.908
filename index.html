@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Chat</title>
-<link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="style.css">
 </head>
 
@@ -13,7 +12,7 @@
 
 <form id="inputForm">
   <textarea id="input" placeholder="メッセージを入力..." rows="1"></textarea>
-  <button id="sendBtn">送信</button>
+  <button>送信</button>
 </form>
 
 <div id="settingsModal" class="modal hidden">
@@ -29,9 +28,6 @@
     <label for="tokensInput">最大トークン数</label>
     <input id="tokensInput" type="number" min="1" value="2000">
 
-    <label for="jsonInput">JSONスキーマ（任意）</label>
-    <input id="jsonInput" type="file" accept=".json">
-
     <div class="modalBtns">
       <button id="saveSettingsBtn">保存</button>
       <button id="closeSettingsBtn">閉じる</button>
@@ -39,35 +35,6 @@
   </div>
 </div>
 
-<button id="settingsBtn" title="設定">⚙︎</button>
+<button id="settingsBtn">設定</button>
 
-<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
-<script>
-async function boot() {
-  const pyodide = await loadPyodide();
-
-  for (const name of ["output.py", "call_cli_llm.py", "main.py"]) {
-    const res = await fetch(name);
-    pyodide.FS.writeFile(name, await res.text());
-  }
-
-  await pyodide.runPythonAsync("import main");
-
-  if ("serviceWorker" in navigator) {
-    const reg = await navigator.serviceWorker.register("sw.js");
-
-    let reloaded = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (reloaded) return;
-      reloaded = true;
-      location.reload();
-    });
-
-    reg.update();
-  }
-}
-
-boot();
-</script>
-</body>
-</html>
+<script src="https://cdn.jsdelivr.net/npm/marked
