@@ -17,7 +17,6 @@ body {
   margin: 10px auto;
   max-width: 700px;
   padding: 10px;
-  white-space: pre-wrap;
 }
 
 .msg.user {
@@ -34,41 +33,4 @@ body {
 #input {
   flex: 1;
   resize: none;
-}
-
-#settingsBtn {
-  position: fixed;
-  top: 5px;
-  right: 5px;
-}
-
-.modal {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hidden {
-  display: none;
-}
-
-.modalBox {
-  padding: 20px;
-  border: 1px solid #ccc;
-}
-
-.modalBox label,
-.modalBox input,
-.modalBox select {
-  display: block;
-  width: 100%;
-  margin: 5px 0;
-}
-
-.modalBtns {
-  display: flex;
-  gap: 5px;
-  margin-top: 10px;
 }
