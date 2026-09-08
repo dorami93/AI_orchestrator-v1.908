@@ -1,50 +1,40 @@
-# server.py
+# main.py
 # ====== Usage ======
-# uv venv
-# source .venv/bin/activate
-# uv pip install -r requirements.txt
-# python server.py
-# http://127.0.0.1:8000/
+# python3 main.py -url "https://chatgpt.com"
 
-import subprocess
-import uvicorn
-from fastapi import FastAPI
-from pydantic import BaseModel
+import argparse
+import asyncio
 
-app = FastAPI()
-CLI_COMMAND = "your-ai-cli"
+from playwright.async_api import async_playwright
 
-class Request(BaseModel):
-    messages: list
 
-def handshake():
-    return {"status": "ok"}
+async def main(url):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        page = await browser.new_page()
 
-def ask(messages):
-    prompt = "\n".join(
-        f"{m['role']}: {m['content']}"
-        for m in messages
-    )
-    result = subprocess.run(
-        [CLI_COMMAND, prompt],
-        capture_output=True,
-        text=True
-    )
-    if result.returncode:
-        raise Exception(result.stderr)
+        await page.goto(url)
+        await page.wait_for_load_state("domcontentloaded")
 
-    return {"content": result.stdout}
+        while True:
+            text = input("> ").strip()
 
-@app.get("/")
-def root():
-    return handshake()
+            if not text:
+                continue
 
-@app.post("/ask")
-def handle_ask(request: Request):
-    return ask(request.messages)
+            if text == "exit":
+                break
 
-def main():
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+            await page.locator("textarea").fill(text)
+            await page.locator("textarea").press("Enter")
+
+            await page.wait_for_timeout(1000)
+            print("送信しました")
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-url", required=True)
+    args = parser.parse_args()
+
+    asyncio.run(main(args.url))
