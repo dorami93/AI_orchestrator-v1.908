@@ -1,31 +1,12 @@
 import asyncio
 from js import document
-
 from call_cli_llm import call_cli
 from output import render_messages
 
-
 input_el = document.getElementById("input")
 messages_el = document.getElementById("messages")
-settings = document.getElementById("settingsModal")
-model = document.getElementById("modelInput")
-temperature = document.getElementById("temperatureInput")
-tokens = document.getElementById("tokensInput")
 
 messages = []
-
-
-def open_settings(*_):
-    settings.classList.remove("hidden")
-
-
-def save_settings(*_):
-    settings.classList.add("hidden")
-
-
-def close_settings(*_):
-    settings.classList.add("hidden")
-
 
 async def edit_message():
     text = input_el.value.strip()
@@ -59,6 +40,3 @@ def bind(el_id, el, attr, handler):
 
 
 bind("inputForm", document.getElementById("inputForm"), "onsubmit", submit)
-bind("settingsBtn", document.getElementById("settingsBtn"), "onclick", open_settings)
-bind("saveSettingsBtn", document.getElementById("saveSettingsBtn"), "onclick", save_settings)
-bind("closeSettingsBtn", document.getElementById("closeSettingsBtn"), "onclick", close_settings)
