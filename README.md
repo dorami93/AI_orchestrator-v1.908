@@ -1,56 +1,136 @@
-# Groq Chat PWA
+# AI Chat Dashboard
 
- Groq APIを使ったフロントエンドのみのチャットPWAです。
+ WebブラウザをUIとして使用し、ローカルのAgentを介してCLIからAIを操作するためのシンプルなチャットUIです。
 
- Pythonで書かれたロジックを[Pyodide](<https://pyodide.org/>)上で実行します。
+ 将来的にはChatGPT・Gemini・Copilotなど複数のAIを1つの画面から操作することを想定しています。
 
- 公開URL: https://dorami93.github.io/AI_orchestrator-v1/
+ ## 構成
 
- ## 公開方法
+```
+Browser
+  │
+  ▼
+Web Dashboard
+  │
+  ▼
+Local Agent
+  │
+  ├── ChatGPT
+  ├── Gemini
+  └── Copilot
+```
 
- 1. ファイルをGitHubリポジトリのルートまたは`docs/`に置く
-2. GitHubのSettings \> Pagesから公開するブランチとフォルダを設定
-3. 公開URLにアクセスする
+ Web側ではAIサービスを直接操作せず、Local Agentにリクエストを送ります。
 
- ## 使い方
+ ## ファイル構成
 
- 1. 公開URLを開く
-2. 「設定」からGroq API Keyを入力
-3. モデルを選択
-4. Temperatureと最大出力トークン数を設定
-5. 必要ならJSON Schemaを選択
-6. メッセージを入力して「送信」
+```
+.
+├── index.html
+├── style.css
+├── main.py
+├── call_cli_llm.py
+└── output.py
+```
 
- JSON Schemaを指定しない場合は通常のMarkdown形式で出力します。
+ - `index.html` — Web UIとPyodideの起動
+- `style.css` — UI
+- `main.py` — チャット処理
+- `call_cli_llm.py` — Local Agentとの通信
+- `output.py` — Markdown表示
 
- ## iPhoneでアプリ化
+ ## 動作
 
- Safariで公開URLを開き、「共有」→「ホーム画面に追加」でPWAとして利用できます。
+```
+ユーザー
+   ↓
+index.html
+   ↓
+Pyodide
+   ↓
+main.py
+   ↓
+call_cli_llm.py
+   ↓
+Local Agent
+```
 
- ## データ
+ Local AgentのAPIは以下を想定しています。
 
- API Key、モデル、Temperature、最大出力トークン数は端末の`localStorage`に保存されます。
+```
+POST http://127.0.0.1:8000/ask
+```
 
- チャット内容はページを閉じると保持されません。
+ リクエスト:
 
- ## 仕組み
+```
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "こんにちは"
+    }
+  ]
+}
+```
 
- - `index.html` — 画面構造とPyodideの起動
-- `main.py` — 入力、設定、モデル取得、送信処理
-- `call_llm.py` — Groq APIとの通信
-- `output.py` — Markdown変換とメッセージ表示
-- `style.css` — スタイル
-- `manifest.json` — PWA設定
-- `sw.js` — Service Worker
-- `icon-192.png` / `icon-512.png` — アプリアイコン
+ レスポンス:
 
- `index.html`がPyodideを読み込み、`main.py`、`call_llm.py`、`output.py`をPyodide上で実行します。
+```
+{
+  "content": "こんにちは！"
+}
+```
 
- ## 注意
+ ## 必要なもの
 
- 初回起動時はPyodide本体の読み込みに時間がかかります。
+ - Python
+- Pyodide
+- Local Agent
+- ブラウザ
 
- Groq APIを使用するため、チャットにはインターネット接続が必要です。
+ Markdownの表示には `marked.js` を使用しています。
 
- Pyodideのバージョンは`index.html`内のCDN URLで固定しています。
- 
+ ## 実行
+
+ Webサーバー経由で `index.html` を開きます。
+
+```
+python -m http.server 8080
+```
+
+ その後、ブラウザで以下を開きます。
+
+```
+http://localhost:8080
+```
+
+ 別途Local Agentを起動して、
+
+```
+http://127.0.0.1:8000/ask
+```
+
+ でリクエストを受けられる状態にします。
+
+ ## 目的
+
+ このプロジェクトでは、Electronのような専用ブラウザを作るのではなく、
+
+ **WebサイトをUIとして利用し、ローカルAgentがAIサービスを操作する**
+
+ という構成を目指しています。
+
+ 将来的には、
+
+ - ChatGPT / Gemini / Copilotの同時実行
+- AIごとの回答比較
+- AI同士の会話
+- CLIからの操作
+- 複数AIを組み合わせたワークフロー
+
+ などへの拡張を想定しています。
+
+ ## Status
+
+ 🚧 開発中
