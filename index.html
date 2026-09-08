@@ -15,26 +15,22 @@
   <button>送信</button>
 </form>
 
-<div id="settingsModal" class="modal hidden">
-  <div class="modalBox">
-    <h2>設定</h2>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 
-    <label for="modelInput">モデル</label>
-    <select id="modelInput"></select>
+<script>
+async function boot() {
+  const pyodide = await loadPyodide();
 
-    <label for="temperatureInput">Temperature</label>
-    <input id="temperatureInput" type="number" min="0" max="2" step="0.1" value="0">
+  for (const name of ["output.py", "call_cli_llm.py", "main.py"]) {
+    const res = await fetch(name);
+    pyodide.FS.writeFile(name, await res.text());
+  }
 
-    <label for="tokensInput">最大トークン数</label>
-    <input id="tokensInput" type="number" min="1" value="2000">
+  await pyodide.runPythonAsync("import main");
+}
 
-    <div class="modalBtns">
-      <button id="saveSettingsBtn">保存</button>
-      <button id="closeSettingsBtn">閉じる</button>
-    </div>
-  </div>
-</div>
-
-<button id="settingsBtn">設定</button>
-
-<script src="https://cdn.jsdelivr.net/npm/marked
+boot();
+</script>
+</body>
+</html>
