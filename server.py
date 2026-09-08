@@ -1,43 +1,50 @@
 # server.py
 #
 # ============================================================
-# Setup: uv add openai
-#        export OPENAI_API_KEY="your-api-key"
+# Setup: uv add playwright
+#        uv run playwright install chromium
 #
-# Run:   python3 server.py
-#        python3 server.py --model gpt-5.6-luna
+# Run:   python3 server.py -url "https://chatgpt.com"
 #
 # Exit:  > exit
 # ============================================================
 
 import argparse
-from openai import OpenAI
+import asyncio
+
+from playwright.async_api import async_playwright
 
 
-def main(model):
-    client = OpenAI()
-
-    while True:
-        text = input("> ").strip()
-
-        if text.lower() == "exit":
-            break
-        if not text:
-            continue
+async def main(url):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
 
         try:
-            response = client.responses.create(
-                model=model,
-                input=text,
-            )
-            print(f"\n{response.output_text}\n")
-        except Exception as e:
-            print(f"Error: {e}")
+            await page.goto(url, wait_until="domcontentloaded")
+            textarea = page.locator("textarea").first
+
+            while True:
+                text = input("> ").strip()
+
+                if text.lower() == "exit":
+                    break
+                if not text:
+                    continue
+
+                await textarea.fill(text)
+                await textarea.press("Enter")
+
+                await page.wait_for_timeout(1000)
+                print("送信しました。")
+
+        finally:
+            await browser.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="gpt-5.6-luna")
+    parser.add_argument("-url", required=True)
     args = parser.parse_args()
 
-    main(args.model)
+    asyncio.run(main(args.url))
