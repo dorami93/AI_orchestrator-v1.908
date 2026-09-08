@@ -1,12 +1,15 @@
 import asyncio
 from js import document
+
 from call_cli_llm import call_cli
 from output import render_messages
+
 
 input_el = document.getElementById("input")
 messages_el = document.getElementById("messages")
 
 messages = []
+
 
 async def edit_message():
     text = input_el.value.strip()
