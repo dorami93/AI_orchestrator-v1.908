@@ -2,17 +2,13 @@ import asyncio
 import json
 from js import document, localStorage, fetch
 
-from call_llm import call_groq
+from call_cli_llm import call_cli
 from output import render_messages
 
-
-DEFAULT_MODEL = "openai/gpt-oss-120b"
 
 input_el = document.getElementById("input")
 messages_el = document.getElementById("messages")
 settings = document.getElementById("settingsModal")
-
-api_key = document.getElementById("apiKeyInput")
 model = document.getElementById("modelInput")
 temperature = document.getElementById("temperatureInput")
 tokens = document.getElementById("tokensInput")
@@ -22,23 +18,20 @@ messages = []
 schema = None
 
 
-# https://console.groq.com/docs/models#production-models のモデルIDをmodels.jsonに記載
 async def load_models():
     response = await fetch("models.json")
-    model_ids = json.loads(await response.text())
+    models = json.loads(await response.text())
 
     model.innerHTML = ""
-    for model_id in model_ids:
+    for model_id in models:
         option = document.createElement("option")
-        option.value = model_id
-        option.textContent = model_id
+        option.value = option.textContent = model_id
         model.appendChild(option)
 
-    model.value = localStorage.getItem("model") or DEFAULT_MODEL
+    model.value = localStorage.getItem("model") or models[0]
 
 
 def open_settings(*_):
-    api_key.value = localStorage.getItem("apiKey") or ""
     temperature.value = localStorage.getItem("temperature") or "0"
     tokens.value = localStorage.getItem("tokens") or "2000"
     asyncio.ensure_future(load_models())
@@ -46,10 +39,9 @@ def open_settings(*_):
 
 
 def save_settings(*_):
-    localStorage.setItem("apiKey", api_key.value.strip())
     localStorage.setItem("model", model.value)
-    localStorage.setItem("temperature", temperature.value or "0")
-    localStorage.setItem("tokens", tokens.value or "2000")
+    localStorage.setItem("temperature", temperature.value)
+    localStorage.setItem("tokens", tokens.value)
     settings.classList.add("hidden")
 
 
@@ -59,13 +51,10 @@ def close_settings(*_):
 
 async def select_json(event):
     global schema
-
     file = event.target.files.item(0)
-
     if not file:
         schema = None
         return
-
     try:
         schema = json.loads(await file.text())
     except Exception:
@@ -74,9 +63,7 @@ async def select_json(event):
 
 async def edit_message():
     text = input_el.value.strip()
-    key = localStorage.getItem("apiKey")
-
-    if not text or not key:
+    if not text:
         return
 
     input_el.value = ""
@@ -84,17 +71,8 @@ async def edit_message():
     render_messages(messages_el, messages)
 
     try:
-        result = await call_groq(
-            messages,
-            key,
-            localStorage.getItem("model") or DEFAULT_MODEL,
-            float(localStorage.getItem("temperature") or "0"),
-            int(localStorage.getItem("tokens") or "2000"),
-            schema
-        )
-
+        result = await call_cli(messages)
         messages.append({"role": "assistant", "content": result})
-
     except Exception as e:
         messages.append({"role": "assistant", "content": "エラー: " + str(e)})
 
@@ -106,17 +84,13 @@ def submit(event):
     asyncio.ensure_future(edit_message())
 
 
-def bind(el_id, el, attr, handler):
-    # キャッシュされた古いHTMLなどでDOM要素が見つからない場合に
-    # AttributeError で全体がクラッシュするのを防ぐ
-    if el is None:
-        print(f"[warn] element #{el_id} not found; skipping binding")
-        return
-    setattr(el, attr, handler)
+def bind(el, attr, handler):
+    if el:
+        setattr(el, attr, handler)
 
 
-bind("inputForm", document.getElementById("inputForm"), "onsubmit", submit)
-bind("settingsBtn", document.getElementById("settingsBtn"), "onclick", open_settings)
-bind("saveSettingsBtn", document.getElementById("saveSettingsBtn"), "onclick", save_settings)
-bind("closeSettingsBtn", document.getElementById("closeSettingsBtn"), "onclick", close_settings)
-bind("jsonInput", json_input, "onchange", lambda e: asyncio.ensure_future(select_json(e)))
+bind(document.getElementById("inputForm"), "onsubmit", submit)
+bind(document.getElementById("settingsBtn"), "onclick", open_settings)
+bind(document.getElementById("saveSettingsBtn"), "onclick", save_settings)
+bind(document.getElementById("closeSettingsBtn"), "onclick", close_settings)
+bind(json_input, "onchange", lambda e: asyncio.ensure_future(select_json(e)))
