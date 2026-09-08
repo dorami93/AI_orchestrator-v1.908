@@ -1,40 +1,81 @@
-# main.py
-# ====== Usage ======
-# python3 main.py -url "https://chatgpt.com"
+# server.py
+#
+# ============================================================
+# CLI Browser - Playwright
+# ============================================================
+#
+# 【Setup】
+# uv add playwright
+# uv run playwright install chromium
+#
+# 【Run】
+# python3 server.py -url "https://chatgpt.com"
+#
+# 【Usage】
+# 起動後、CLIから入力するとブラウザへ送信します。
+#
+# > こんにちは
+# 送信しました。
+#
+# > Pythonについて教えて
+# 送信しました。
+#
+# 終了：
+# > exit
+#
+# ※ ログインが必要な場合は、起動したブラウザ側でログインしてください。
+#
+# ============================================================
+
 
 import argparse
 import asyncio
 
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 
-async def main(url):
+async def main(url: str):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
 
-        await page.goto(url)
-        await page.wait_for_load_state("domcontentloaded")
+        try:
+            await page.goto(url, wait_until="domcontentloaded")
+            print(f"Browser ready: {url}")
+            print("終了: exit\n")
 
-        while True:
-            text = input("> ").strip()
+            while True:
+                try:
+                    text = input("> ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print("\n終了します。")
+                    break
 
-            if not text:
-                continue
+                if not text:
+                    continue
 
-            if text == "exit":
-                break
+                if text.lower() == "exit":
+                    break
 
-            await page.locator("textarea").fill(text)
-            await page.locator("textarea").press("Enter")
+                textarea = page.locator("textarea").first
 
-            await page.wait_for_timeout(1000)
-            print("送信しました")
+                try:
+                    await textarea.wait_for(state="visible", timeout=10000)
+                    await textarea.fill(text)
+                    await textarea.press("Enter")
+                    print("送信しました。")
+                except PlaywrightTimeoutError:
+                    print("textareaが見つかりませんでした。")
+
+                await page.wait_for_timeout(1000)
+
+        finally:
+            await browser.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-url", required=True)
+    parser.add_argument("-url", required=True, help="Open URL")
     args = parser.parse_args()
 
     asyncio.run(main(args.url))
