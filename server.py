@@ -14,34 +14,30 @@
 # 別ターミナルから:
 #   python3 call_cli_llm.py -url "https://chatgpt.com"
 #
+# サイト追加/変更は sites.json を編集するだけでよい
+#
 # 停止: Ctrl+C
 #===============================================================
 
 import asyncio
 import json
+import re
+from pathlib import Path
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from markdownify import markdownify as html_to_markdown
 
 HOST, PORT = "127.0.0.1", 8765
+SITE_CONFIGS = json.loads((Path(__file__).parent / "sites.json").read_text(encoding="utf-8"))
 
-SITE_CONFIGS = {
-    "chatgpt.com": {
-        "input_selector": "textarea",
-        "answer_selector": "[data-message-author-role='assistant']",
-        "wait_for_text": "回答が完了しました",
-    },
-    "claude.ai": {
-        "input_selector": "div[contenteditable='true']",
-        "answer_selector": "[data-testid='chat-message']",
-        "wait_for_text": None,
-    },
-}
-DEFAULT_CONFIG = SITE_CONFIGS["chatgpt.com"]
+STREAM_MARKER_RE = re.compile(
+    r'(start|marker)\s+name="assistant-pending-[a-zA-Z0-9-]*"\?'
+    r'|(?<![a-zA-Z])end\s\?',
+)
 
 
 def get_config(url):
-    return SITE_CONFIGS.get(urlparse(url).netloc.replace("www.", ""), DEFAULT_CONFIG)
+    return SITE_CONFIGS.get(urlparse(url).netloc.replace("www.", ""), SITE_CONFIGS["default"])
 
 
 class BrowserManager:
@@ -55,14 +51,15 @@ class BrowserManager:
             headless=False,
             args=["--window-position=-10000,-10000", "--window-size=400,300", "--mute-audio"],
         )
+        self.context = await self.browser.new_context(
+            permissions=["clipboard-read", "clipboard-write"],
+            viewport={"width": 400, "height": 300},
+        )
 
     async def get_or_open_page(self, key, url):
         if key in self.pages:
             return self.pages[key]
-        page = await self.browser.new_page(viewport={"width": 400, "height": 300})
-        await page.route("**/*", lambda route: route.abort()
-                          if route.request.resource_type in {"image", "font", "media"}
-                          else route.continue_())
+        page = await self.context.new_page()
         await page.goto(url, wait_until="domcontentloaded")
         self.pages[key] = page
         self.locks[key] = asyncio.Lock()
@@ -79,21 +76,14 @@ class BrowserManager:
                 await box.fill(text)
                 await box.press("Enter")
 
-                if config["wait_for_text"]:
-                    await page.get_by_text(config["wait_for_text"], exact=True).wait_for(timeout=120000)
-                else:
-                    await page.wait_for_load_state("networkidle", timeout=120000)
-
-                # レンダリング後のinner_textではなくinner_htmlを取り、Markdown記法に戻す
-                messages = page.locator(config["answer_selector"])
-                last_html = await messages.last.inner_html()
-                return html_to_markdown(last_html).strip()
+                copy_button = page.get_by_role("button", name=config["copy_button_name"]).last
+                await copy_button.wait_for(state="visible", timeout=120000)
+                ancestor = copy_button.locator("xpath=" + "/".join([".."] * config["answer_ancestor_level"]))
+                markdown = html_to_markdown(await ancestor.inner_html()).strip()
+                markdown = STREAM_MARKER_RE.sub("", markdown)
+                return re.sub(r"\n{3,}", "\n\n", markdown).strip()
             except PlaywrightTimeoutError:
                 return "[エラー] タイムアウトしました"
-
-    async def close(self):
-        await self.browser.close()
-        await self.playwright.stop()
 
 
 async def handle_client(reader, writer, manager):
