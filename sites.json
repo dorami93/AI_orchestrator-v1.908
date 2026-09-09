@@ -4,14 +4,9 @@
     "copy_button_name": "コピーする",
     "answer_ancestor_level": 2
   },
-  "claude.ai": {
-    "input_selector": "div[contenteditable='true']",
-    "copy_button_name": "コピーする",
-    "answer_ancestor_level": 2
-  },
   "gemini.google.com": {
     "input_selector": "div[contenteditable='true']",
-    "copy_button_name": "コピーする",
+    "copy_button_name": "回答をコピー",
     "answer_ancestor_level": 3
   },
   "default": {
