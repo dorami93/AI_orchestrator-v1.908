@@ -1,35 +1,42 @@
-import asyncio
-from js import document
-from call_cli_llm import call_cli
-from output import render_messages
+#=== main.py
+# 使い方:
+#   index.htmlからPyodideで読み込む
+#===
 
+import json
+from js import document, fetch
+
+model_el = document.getElementById("model")
+port_el = document.getElementById("port")
 input_el = document.getElementById("input")
 messages_el = document.getElementById("messages")
+sites = {}
 
-messages = []
 
-async def edit_message():
+async def load_sites():
+    global sites
+    response = await fetch("sites.json")
+    sites = json.loads(await response.text())
+    model_el.innerHTML = ""
+    for name in sites:
+        if name == "default":
+            continue
+        option = document.createElement("option")
+        option.value = name
+        option.textContent = name
+        model_el.appendChild(option)
+
+
+async def send_message(event):
+    event.preventDefault()
     text = input_el.value.strip()
     if not text:
         return
     input_el.value = ""
-    messages.append({"role": "user", "content": text})
-    render_messages(messages_el, messages)
-    try:
-        result = await call_cli(messages)
-        messages.append({"role": "assistant", "content": result})
-    except Exception as e:
-        messages.append({"role": "assistant", "content": "エラー: " + str(e)})
-    render_messages(messages_el, messages)
+    model = model_el.value
+    port = port_el.value
+    messages_el.innerHTML += f"<div>YOU: {text}</div><div>MODEL: {model}:{port}</div>"
 
-def submit(event):
-    event.preventDefault()
-    asyncio.ensure_future(edit_message())
 
-def bind(el_id, el, attr, handler):
-    if el is None:
-        print(f"[warn] element #{el_id} not found; skipping binding")
-        return
-    setattr(el, attr, handler)
-
-bind("inputForm", document.getElementById("inputForm"), "onsubmit", submit)
+document.getElementById("inputForm").onsubmit = send_message
+await load_sites()
