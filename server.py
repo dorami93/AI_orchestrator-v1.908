@@ -1,11 +1,11 @@
-# ============================================================
+#===============================================================
 # server.py
 #
 # 常駐サーバー。ブラウザを1つ起動し保持したまま、
 # ソケット経由で複数URL(タブ)への入力・回答取得を処理する。
 #
 # Setup:
-#   uv add playwright
+#   uv add playwright markdownify
 #   uv run playwright install chromium
 #
 # Run:
@@ -15,27 +15,26 @@
 #   python3 call_cli_llm.py -url "https://chatgpt.com"
 #
 # 停止: Ctrl+C
-# ============================================================
+#===============================================================
 
 import asyncio
 import json
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+from markdownify import markdownify as html_to_markdown
 
 HOST, PORT = "127.0.0.1", 8765
 
 SITE_CONFIGS = {
     "chatgpt.com": {
         "input_selector": "textarea",
+        "answer_selector": "[data-message-author-role='assistant']",
         "wait_for_text": "回答が完了しました",
-        "start_marker": "ChatGPT:",
-        "end_marker": "ChatGPT は AI",
     },
     "claude.ai": {
         "input_selector": "div[contenteditable='true']",
+        "answer_selector": "[data-testid='chat-message']",
         "wait_for_text": None,
-        "start_marker": None,
-        "end_marker": None,
     },
 }
 DEFAULT_CONFIG = SITE_CONFIGS["chatgpt.com"]
@@ -85,12 +84,10 @@ class BrowserManager:
                 else:
                     await page.wait_for_load_state("networkidle", timeout=120000)
 
-                body = await page.locator("body").inner_text()
-                if config["start_marker"]:
-                    start = body.rfind(config["start_marker"])
-                    end = body.find(config["end_marker"], start) if config["end_marker"] else len(body)
-                    return body[start + len(config["start_marker"]):end].strip()
-                return body[-2000:].strip()
+                # レンダリング後のinner_textではなくinner_htmlを取り、Markdown記法に戻す
+                messages = page.locator(config["answer_selector"])
+                last_html = await messages.last.inner_html()
+                return html_to_markdown(last_html).strip()
             except PlaywrightTimeoutError:
                 return "[エラー] タイムアウトしました"
 
