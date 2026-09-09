@@ -5,7 +5,7 @@
 # ソケット経由で複数URL(タブ)への入力・回答取得を処理する。
 #
 # Setup:
-#   uv add playwright
+#   uv add playwright html2text
 #   uv run playwright install chromium
 #
 # Run:
@@ -19,23 +19,25 @@
 
 import asyncio
 import json
+import re
+import html2text
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 HOST, PORT = "127.0.0.1", 8765
+converter = html2text.HTML2Text()
+converter.body_width = 0
 
 SITE_CONFIGS = {
     "chatgpt.com": {
         "input_selector": "textarea",
         "wait_for_text": "回答が完了しました",
-        "start_marker": "ChatGPT:",
-        "end_marker": "ChatGPT は AI",
+        "answer_selector": "[data-assistant-markdown]",
     },
     "claude.ai": {
         "input_selector": "div[contenteditable='true']",
         "wait_for_text": None,
-        "start_marker": None,
-        "end_marker": None,
+        "answer_selector": "[data-testid='message-content']",
     },
 }
 DEFAULT_CONFIG = SITE_CONFIGS["chatgpt.com"]
@@ -85,12 +87,9 @@ class BrowserManager:
                 else:
                     await page.wait_for_load_state("networkidle", timeout=120000)
 
-                body = await page.locator("body").inner_text()
-                if config["start_marker"]:
-                    start = body.rfind(config["start_marker"])
-                    end = body.find(config["end_marker"], start) if config["end_marker"] else len(body)
-                    return body[start + len(config["start_marker"]):end].strip()
-                return body[-2000:].strip()
+                answer_html = await page.locator(config["answer_selector"]).last.inner_html()
+                answer_html = re.sub(r"<\?.*?\?>", "", answer_html)
+                return converter.handle(answer_html).strip()
             except PlaywrightTimeoutError:
                 return "[エラー] タイムアウトしました"
 
