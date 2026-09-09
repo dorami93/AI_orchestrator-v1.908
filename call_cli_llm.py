@@ -1,14 +1,46 @@
+# ============================================================
+# call_cli_llm.py
+#
+# server.py に接続する軽量クライアント。
+# 事前に別ターミナルで server.py を起動しておくこと。
+#
+# Run:
+#   python3 call_cli_llm.py -url "https://chatgpt.com"
+#
+# 終了: exit
+# ============================================================
+
+import argparse
 import json
-from js import fetch
+import socket
 
-URL = "http://127.0.0.1:8000/ask"
+HOST, PORT = "127.0.0.1", 8765
 
-async def call_cli(messages):
-    response = await fetch(URL, {
-        "method": "POST",
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"messages": messages})
-    })
-    if not response.ok:
-        raise Exception(f"Agent error: {response.status}")
-    return json.loads(await response.text())["content"]
+
+def send_request(url, text):
+    with socket.create_connection((HOST, PORT)) as sock:
+        sock.sendall((json.dumps({"url": url, "text": text}) + "\n").encode())
+        raw = sock.recv(65536)
+        return json.loads(raw.decode())
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-url", required=True)
+    url = parser.parse_args().url
+
+    print(f"接続先: {url} (サーバー: {HOST}:{PORT})")
+    print("終了: exit\n")
+
+    while True:
+        text = input("> ").strip()
+        if not text:
+            continue
+        if text.lower() == "exit":
+            break
+        result = send_request(url, text)
+        print(f"\n{result['answer']}\n")
+
+
+if __name__ == "__main__":
+    main()
