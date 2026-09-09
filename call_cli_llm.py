@@ -18,7 +18,7 @@ import uuid
 HOST, PORT = "127.0.0.1", 8765
 
 
-def send_request(session_id, url, text):
+def call_llm(session_id, url, text):
     with socket.create_connection((HOST, PORT)) as sock:
         sock.sendall((json.dumps({"session_id": session_id, "url": url, "text": text}) + "\n").encode())
         raw = sock.recv(65536)
@@ -40,7 +40,7 @@ def main():
             continue
         if text.lower() == "exit":
             break
-        result = send_request(session_id, url, text)
+        result = call_llm(session_id, url, text)
         print(f"\n{result['answer']}\n")
 
 
