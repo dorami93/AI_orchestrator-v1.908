@@ -6,7 +6,7 @@
   },
   "gemini.google.com": {
     "input_selector": "div[contenteditable='true']",
-    "copy_button_name": "回答をコピー",
+    "copy_button_name": "コピー",
     "answer_ancestor_level": 3
   },
   "default": {
