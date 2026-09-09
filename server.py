@@ -57,22 +57,23 @@ class BrowserManager:
             args=["--window-position=-10000,-10000", "--window-size=400,300", "--mute-audio"],
         )
 
-    async def get_or_open_page(self, url):
-        if url in self.pages:
-            return self.pages[url]
+    async def get_or_open_page(self, key, url):
+        if key in self.pages:
+            return self.pages[key]
         page = await self.browser.new_page(viewport={"width": 400, "height": 300})
         await page.route("**/*", lambda route: route.abort()
                           if route.request.resource_type in {"image", "font", "media"}
                           else route.continue_())
         await page.goto(url, wait_until="domcontentloaded")
-        self.pages[url] = page
-        self.locks[url] = asyncio.Lock()
+        self.pages[key] = page
+        self.locks[key] = asyncio.Lock()
         return page
 
-    async def ask(self, url, text):
+    async def ask(self, session_id, url, text):
+        key = (session_id, url)
         config = get_config(url)
-        page = await self.get_or_open_page(url)
-        async with self.locks[url]:
+        page = await self.get_or_open_page(key, url)
+        async with self.locks[key]:
             try:
                 box = page.locator(config["input_selector"]).first
                 await box.wait_for(state="visible", timeout=10000)
@@ -100,8 +101,8 @@ class BrowserManager:
 
 async def handle_client(reader, writer, manager):
     req = json.loads((await reader.readline()).decode())
-    print(f"[server] 受信 ({req['url']}): {req['text']}")
-    answer = await manager.ask(req["url"], req["text"])
+    print(f"[server] 受信 [{req['session_id']}] ({req['url']}): {req['text']}")
+    answer = await manager.ask(req["session_id"], req["url"], req["text"])
     writer.write((json.dumps({"answer": answer}) + "\n").encode())
     await writer.drain()
     writer.close()
